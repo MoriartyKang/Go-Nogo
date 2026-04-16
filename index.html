@@ -1,0 +1,1473 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+  <meta charset="UTF-8">
+  <!-- 뷰포트 고정: 모바일에서 확대/축소 방지 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Go/No-Go Task — 반응 억제 실험</title>
+  <meta name="description" content="Go/No-Go 과제: 반응 억제(response inhibition)를 측정하는 인지 실험입니다.">
+
+  <style>
+    /* ===================================================================
+       디자인 시스템 — 다크 모드 기반 미니멀 집중형
+       =================================================================== */
+    :root {
+      --bg: #0a0c12;
+      --bg-card: rgba(16, 20, 32, 0.88);
+      --glass: rgba(255, 255, 255, 0.04);
+      --border: rgba(255, 255, 255, 0.07);
+      --text: #e4e8f2;
+      --text-dim: #7e87a0;
+      --accent: #6c8cff;
+      --accent-glow: rgba(108, 140, 255, 0.25);
+      --green: #34d399;
+      --green-dim: rgba(52, 211, 153, 0.12);
+      --red: #f87171;
+      --red-dim: rgba(248, 113, 113, 0.12);
+      --yellow: #fbbf24;
+      --yellow-dim: rgba(251, 191, 36, 0.12);
+      --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+      --radius: 16px;
+      --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Google Fonts 로드 */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+    /* 리셋 */
+    *,
+    *::before,
+    *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      height: 100%;
+      overflow-x: hidden;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+      overflow: auto;
+      overflow-x: hidden;
+      touch-action: pan-y;
+    }
+
+    /* 실험 진행 중 스크롤 잠금 */
+    body.experiment-active {
+      overflow: hidden;
+      touch-action: none;
+    }
+
+    /* 은은한 배경 그라디언트 애니메이션 */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background:
+        radial-gradient(ellipse at 25% 15%, rgba(108, 140, 255, 0.05) 0%, transparent 50%),
+        radial-gradient(ellipse at 75% 85%, rgba(52, 211, 153, 0.03) 0%, transparent 50%);
+      animation: ambientDrift 25s ease-in-out infinite alternate;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    @keyframes ambientDrift {
+      0% {
+        transform: translate(0, 0) rotate(0deg);
+      }
+
+      100% {
+        transform: translate(-2%, 1.5%) rotate(2deg);
+      }
+    }
+
+    /* ===================================================================
+       화면 컨테이너
+       =================================================================== */
+    .screen {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      width: 100%;
+      max-width: 700px;
+      padding: 2rem;
+      position: relative;
+      z-index: 1;
+      animation: fadeIn 0.5s ease;
+    }
+
+    .screen.active {
+      display: flex;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(14px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* ===================================================================
+       카드 (glassmorphism)
+       =================================================================== */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      padding: 3rem;
+      width: 100%;
+      box-shadow: 0 8px 48px rgba(0, 0, 0, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    }
+
+    /* ===================================================================
+       타이포그래피
+       =================================================================== */
+    h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(135deg, #fff 40%, var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    h2 {
+      font-size: 1.3rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      color: var(--text);
+    }
+
+    .subtitle {
+      color: var(--text-dim);
+      font-size: 0.95rem;
+      line-height: 1.6;
+      margin-bottom: 2rem;
+    }
+
+    .instructions {
+      text-align: left;
+      background: var(--glass);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      font-size: 0.9rem;
+      line-height: 1.9;
+      color: var(--text-dim);
+    }
+
+    .instructions strong {
+      color: var(--text);
+    }
+
+    /* 환경 안내 배지 */
+    .env-notice {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--yellow-dim);
+      border: 1px solid rgba(251, 191, 36, 0.2);
+      border-radius: 10px;
+      padding: 0.6rem 1.2rem;
+      font-size: 0.82rem;
+      color: var(--yellow);
+      margin-bottom: 1.5rem;
+      line-height: 1.5;
+    }
+
+    /* ===================================================================
+       버튼
+       =================================================================== */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0.85rem 2.2rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+      font-family: var(--font);
+      color: #fff;
+      background: linear-gradient(135deg, var(--accent), #5570e6);
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: var(--transition);
+      box-shadow: 0 4px 20px var(--accent-glow);
+      letter-spacing: 0.01em;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 30px var(--accent-glow);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      pointer-events: none;
+    }
+
+    /* ===================================================================
+       참가자 입력
+       =================================================================== */
+    .participant-input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      margin-bottom: 2rem;
+      width: 100%;
+      max-width: 360px;
+    }
+
+    .participant-input-group label {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      text-align: left;
+    }
+
+    .participant-input {
+      width: 100%;
+      padding: 0.85rem 1.2rem;
+      font-size: 1rem;
+      font-family: var(--font);
+      color: var(--text);
+      background: var(--glass);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      outline: none;
+      transition: var(--transition);
+    }
+
+    .participant-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    .participant-input::placeholder {
+      color: rgba(136, 145, 168, 0.5);
+    }
+
+    .input-error {
+      border-color: var(--red) !important;
+      box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.2) !important;
+    }
+
+    .error-msg {
+      font-size: 0.8rem;
+      color: var(--red);
+      min-height: 1.2em;
+      text-align: left;
+    }
+
+    /* ===================================================================
+       실험 화면
+       =================================================================== */
+    #experiment-screen {
+      justify-content: flex-start;
+      padding-top: 5vh;
+      height: 100vh;
+    }
+
+    .trial-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 340px;
+      width: 100%;
+    }
+
+    /* 응시점 */
+    .fixation {
+      font-size: 4rem;
+      font-weight: 300;
+      color: var(--text-dim);
+      user-select: none;
+    }
+
+    /* 자극 — 색상 사각형 (Go: 초록색 / No-Go: 빨간색) */
+    .stimulus-square {
+      width: 140px;
+      height: 140px;
+      border-radius: 18px;
+      user-select: none;
+      animation: stimPop 0.12s ease-out;
+    }
+
+    .stimulus-square.go {
+      background: linear-gradient(135deg, #34d399, #10b981);
+      box-shadow: 0 0 60px rgba(52, 211, 153, 0.4), 0 0 120px rgba(52, 211, 153, 0.15);
+    }
+
+    .stimulus-square.nogo {
+      background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+      box-shadow: 0 0 60px rgba(255, 107, 107, 0.4), 0 0 120px rgba(255, 107, 107, 0.15);
+    }
+
+    @keyframes stimPop {
+      from {
+        transform: scale(0.6);
+        opacity: 0;
+      }
+
+      to {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    /* 피드백 (연습 전용) */
+    .feedback {
+      font-size: 1.1rem;
+      font-weight: 600;
+      padding: 0.6rem 1.5rem;
+      border-radius: 10px;
+      animation: fadeIn 0.2s ease;
+    }
+
+    .feedback.correct {
+      color: var(--green);
+      background: var(--green-dim);
+      border: 1px solid rgba(52, 211, 153, 0.2);
+    }
+
+    .feedback.incorrect {
+      color: var(--red);
+      background: var(--red-dim);
+      border: 1px solid rgba(248, 113, 113, 0.2);
+    }
+
+    /* 진행 바 */
+    .progress-bar-container {
+      width: 100%;
+      max-width: 400px;
+      height: 4px;
+      background: var(--glass);
+      border-radius: 2px;
+      margin-bottom: 2rem;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--green));
+      border-radius: 2px;
+      transition: width 0.4s ease;
+    }
+
+    .phase-label {
+      font-size: 0.78rem;
+      color: var(--text-dim);
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+    }
+
+    /* ===================================================================
+       모바일 터치 버튼 — 화면 하단 중앙 큰 원형 버튼
+       =================================================================== */
+    .touch-go-btn {
+      display: none;
+      /* 모바일에서만 표시 */
+      position: fixed;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 120px;
+      height: 120px;
+      border: 2px solid rgba(255, 255, 255, 0.15);
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.06);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      color: var(--text);
+      font-size: 1rem;
+      font-weight: 600;
+      font-family: var(--font);
+      cursor: pointer;
+      transition: var(--transition);
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      z-index: 100;
+      letter-spacing: 0.05em;
+    }
+
+    .touch-go-btn:active,
+    .touch-go-btn.pressed {
+      background: rgba(108, 140, 255, 0.35);
+      border-color: var(--accent);
+      transform: translateX(-50%) scale(0.93);
+      box-shadow: 0 0 30px var(--accent-glow);
+    }
+
+    .touch-go-btn.visible {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* 데스크톱 키 힌트 */
+    .key-hint {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: center;
+      gap: 1.5rem;
+      padding: 0.8rem 2rem;
+      background: rgba(10, 12, 18, 0.92);
+      backdrop-filter: blur(12px);
+      border-top: 1px solid var(--border);
+      z-index: 10;
+    }
+
+    .key-hint .hint-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.83rem;
+      color: var(--text-dim);
+    }
+
+    .key-hint .key-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 52px;
+      height: 30px;
+      padding: 0 10px;
+      background: var(--glass);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    /* ===================================================================
+       결과 화면
+       =================================================================== */
+    .results-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      margin-bottom: 2rem;
+      width: 100%;
+    }
+
+    .result-card {
+      background: var(--glass);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem;
+      text-align: center;
+    }
+
+    .result-card .label {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.5rem;
+    }
+
+    .result-card .value {
+      font-size: 1.6rem;
+      font-weight: 700;
+      font-family: var(--mono);
+    }
+
+    .result-card .unit {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      font-weight: 400;
+    }
+
+    /* 결과 상세 테이블 */
+    .results-detail {
+      width: 100%;
+      margin-bottom: 2rem;
+    }
+
+    .results-detail table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 0.85rem;
+    }
+
+    .results-detail th,
+    .results-detail td {
+      padding: 0.7rem 1rem;
+      text-align: center;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .results-detail th {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-dim);
+      background: var(--glass);
+    }
+
+    .results-detail th:first-child {
+      border-radius: 10px 0 0 0;
+    }
+
+    .results-detail th:last-child {
+      border-radius: 0 10px 0 0;
+    }
+
+    .results-detail td {
+      font-family: var(--mono);
+      font-size: 0.88rem;
+    }
+
+    .results-detail tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* 전송 상태 */
+    .sending-status {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      margin-top: 1rem;
+      min-height: 1.5em;
+    }
+
+    .sending-status.success {
+      color: var(--green);
+    }
+
+    .sending-status.error {
+      color: var(--red);
+    }
+
+    /* 스크롤바 */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px;
+    }
+
+    #results-screen .card {
+      max-height: 88vh;
+      overflow-y: auto;
+    }
+
+    /* ===================================================================
+       모바일 반응형
+       =================================================================== */
+    @media (max-width: 600px) {
+      .card {
+        padding: 1.5rem;
+      }
+
+      h1 {
+        font-size: 1.5rem;
+      }
+
+      .stimulus-square {
+        width: 110px;
+        height: 110px;
+        border-radius: 14px;
+      }
+
+      .feedback.premature {
+        font-size: 0.95rem;
+      }
+
+      .trial-area {
+        min-height: 220px;
+      }
+
+      .results-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      #experiment-screen {
+        padding-top: 3vh;
+        padding-bottom: 180px;
+        /* 터치 버튼 공간 확보 */
+      }
+
+      .key-hint {
+        display: none !important;
+      }
+
+      .touch-go-btn {
+        width: 100px;
+        height: 100px;
+        bottom: 30px;
+        font-size: 0.9rem;
+      }
+    }
+
+    @media (max-width: 380px) {
+      .touch-go-btn {
+        width: 88px;
+        height: 88px;
+        bottom: 20px;
+        font-size: 0.82rem;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ======================== 시작 화면 ======================== -->
+  <div id="start-screen" class="screen active">
+    <div class="card">
+      <h1>Go / No-Go 과제</h1>
+      <p class="subtitle">반응 억제(Response Inhibition) 측정 실험</p>
+
+      <!-- 환경 안내 -->
+      <div class="env-notice" id="env-notice">
+        🔇 조용한 환경에서 참여하고, 가능한 한 같은 기기 환경을 유지하세요.
+      </div>
+
+      <!-- 안내 문구 (디바이스에 따라 동적 변경) -->
+      <div class="instructions" id="start-instructions"></div>
+
+      <!-- 참가자 ID 입력 -->
+      <div class="participant-input-group">
+        <label for="participant-name">참가자 닉네임</label>
+        <input type="text" id="participant-name" class="participant-input" placeholder="예: 콩쥐" autocomplete="off"
+          spellcheck="false">
+        <div class="error-msg" id="name-error"></div>
+      </div>
+
+      <button id="btn-start" class="btn">실험 시작 →</button>
+    </div>
+  </div>
+
+  <!-- ======================== 연습 안내 화면 ======================== -->
+  <div id="practice-intro-screen" class="screen">
+    <div class="card">
+      <h2>연습 시행</h2>
+      <p class="subtitle">
+        먼저 5회의 연습을 진행합니다.<br>
+        연습에서는 정답 여부를 알려드립니다.
+      </p>
+      <div class="instructions">
+        <p><strong>규칙 요약</strong></p>
+        <p>• <span
+            style="display:inline-block;width:16px;height:16px;border-radius:4px;background:linear-gradient(135deg,#34d399,#10b981);vertical-align:middle;"></span>
+          <strong>초록 네모</strong> 가 나타나면 → <span id="practice-action-label">SPACE</span>를 최대한 빠르게
+        </p>
+        <p>• <span
+            style="display:inline-block;width:16px;height:16px;border-radius:4px;background:linear-gradient(135deg,#ff6b6b,#ee5a24);vertical-align:middle;"></span>
+          <strong>빨간 네모</strong> 가 나타나면 → 아무것도 누르지 않기
+        </p>
+        <p style="margin-top:0.5rem;color:var(--yellow);">⚠ 기준선(+) 표시 중에 누르면 오류로 기록됩니다.</p>
+      </div>
+      <button id="btn-practice-start" class="btn">연습 시작 →</button>
+    </div>
+  </div>
+
+  <!-- ======================== 본 실험 안내 화면 ======================== -->
+  <div id="main-intro-screen" class="screen">
+    <div class="card">
+      <h2>본 실험 시작</h2>
+      <p class="subtitle">
+        이제 40회의 본 실험을 진행합니다.<br>
+        피드백은 제공되지 않습니다. 최대한 빠르고 정확하게 반응하세요.
+      </p>
+      <button id="btn-main-start" class="btn">본 실험 시작 →</button>
+    </div>
+  </div>
+
+  <!-- ======================== 실험 진행 화면 ======================== -->
+  <div id="experiment-screen" class="screen">
+    <div class="phase-label" id="phase-label">PRACTICE</div>
+    <div class="progress-bar-container">
+      <div class="progress-bar-fill" id="progress-fill" style="width:0%"></div>
+    </div>
+    <div class="trial-area" id="trial-area"></div>
+
+    <!-- 데스크톱: 키 안내 바 -->
+    <div class="key-hint" id="key-hint">
+      <div class="hint-item">
+        <span class="key-badge">SPACE</span>
+        <span>→ <span
+            style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#34d399;vertical-align:middle;"></span>
+          초록 네모 일 때 누르기</span>
+      </div>
+      <div class="hint-item">
+        <span style="color:var(--text-dim);"><span
+            style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#ff6b6b;vertical-align:middle;"></span>
+          빨간 네모 일 때 → 누르지 않기</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 모바일: 화면 중앙 큰 터치 버튼 -->
+  <button class="touch-go-btn" id="touch-go-btn">TAP</button>
+
+  <!-- ======================== 결과 화면 ======================== -->
+  <div id="results-screen" class="screen">
+    <div class="card">
+      <h1>실험 결과</h1>
+      <p class="subtitle">Results Summary</p>
+
+      <div class="results-grid" id="results-grid"></div>
+
+      <div class="results-detail" id="results-detail"></div>
+
+      <div class="sending-status" id="sending-status"></div>
+    </div>
+  </div>
+
+  <!-- ======================== 메인 스크립트 ======================== -->
+  <script>
+    (function () {
+      'use strict';
+
+      // ─────────────────────────────────────────────────────────────
+      // 설정값 (Configuration)
+      // ─────────────────────────────────────────────────────────────
+
+      /** Google Apps Script Web App URL (POST 전송 대상) */
+      const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzBbtUOJHpXLGdlVV06WucNU92h6n51t_XgqAl0IkrVYxxkaRitY9Bd0KRGgBibiTyB/exec';
+
+      /** 자극 제시 최대 시간 (ms) */
+      const STIMULUS_DURATION = 1000;
+
+      /** 응시점(fixation) 표시 시간 (ms) */
+      const FIXATION_DURATION = 500;
+
+      /** 시행 간 간격 ITI (ms) */
+      const ITI_DURATION = 500;
+
+      /** 연습 시행 수 */
+      const PRACTICE_TRIAL_COUNT = 5;
+
+      /** 본 실험 시행 수 (80:20 비율 유지 = Go 32 + No-Go 8) */
+      const MAIN_TRIAL_COUNT = 40;
+
+      /** Go 비율 (0~1) — 80% Go, 20% No-Go */
+      const GO_RATIO = 0.8;
+
+      // ─────────────────────────────────────────────────────────────
+      // 디바이스 감지
+      // ─────────────────────────────────────────────────────────────
+
+      /** 모바일 여부 판별 */
+      const isMobile = /Android|iPhone|iPad|iPod|webOS/i.test(navigator.userAgent)
+        || ('ontouchstart' in window && window.innerWidth <= 768);
+
+      const deviceType = isMobile ? 'mobile' : 'desktop';
+
+      // ─────────────────────────────────────────────────────────────
+      // 상태 변수
+      // ─────────────────────────────────────────────────────────────
+
+      /** 참가자 고유 ID */
+      const participantId = crypto.randomUUID ? crypto.randomUUID() : generateUUID();
+
+      /** 참가자 이름 */
+      let participantName = '';
+
+      /** 전체 실험 데이터 배열 */
+      let allData = [];
+
+      /** 현재 입력 수용 여부 (중복 입력 방지) */
+      let acceptingInput = false;
+
+      /** 자극 등장 시각 (performance.now) */
+      let stimulusOnsetTime = 0;
+
+      /** 현재 trial의 resolve 함수 (Promise 기반 입력 대기) */
+      let trialResolve = null;
+
+      /** 현재 trial의 condition ('go' | 'nogo') */
+      let currentCondition = null;
+
+      /** 키 중복 방지: 키를 떼야 다시 입력 가능 */
+      let keyReleased = true;
+
+      // ─────────────────────────────────────────────────────────────
+      // DOM 참조
+      // ─────────────────────────────────────────────────────────────
+
+      const screens = {
+        start: document.getElementById('start-screen'),
+        practiceIntro: document.getElementById('practice-intro-screen'),
+        mainIntro: document.getElementById('main-intro-screen'),
+        experiment: document.getElementById('experiment-screen'),
+        results: document.getElementById('results-screen'),
+      };
+
+      const trialArea = document.getElementById('trial-area');
+      const progressFill = document.getElementById('progress-fill');
+      const phaseLabel = document.getElementById('phase-label');
+      const keyHint = document.getElementById('key-hint');
+      const touchGoBtn = document.getElementById('touch-go-btn');
+      const sendingStatus = document.getElementById('sending-status');
+
+      // ─────────────────────────────────────────────────────────────
+      // 유틸리티 함수
+      // ─────────────────────────────────────────────────────────────
+
+      /** UUID 생성 (fallback) */
+      function generateUUID() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+          const r = Math.random() * 16 | 0;
+          return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+        });
+      }
+
+      /** 배열 셔플 (Fisher-Yates) */
+      function shuffle(arr) {
+        const a = [...arr];
+        for (let i = a.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
+      }
+
+      /** 지정 시간만큼 대기 (ms) */
+      function sleep(ms) {
+        return new Promise(r => setTimeout(r, ms));
+      }
+
+      /** 화면 전환: 모든 화면 숨기고 name에 해당하는 화면만 표시 */
+      function showScreen(name) {
+        Object.values(screens).forEach(s => s.classList.remove('active'));
+        screens[name].classList.add('active');
+      }
+
+      /** 평균 계산 */
+      function mean(arr) {
+        if (arr.length === 0) return 0;
+        return arr.reduce((s, v) => s + v, 0) / arr.length;
+      }
+
+      // ─────────────────────────────────────────────────────────────
+      // Trial 시퀀스 생성
+      // ─────────────────────────────────────────────────────────────
+
+      /**
+       * 지정 수만큼의 trial 배열 생성
+       * Go:No-Go 비율 = GO_RATIO : (1 - GO_RATIO)
+       * @param {number} count - 전체 시행 수
+       * @returns {Array<{condition: string, stimulus: string, correct_response: string}>}
+       */
+      function generateTrials(count) {
+        const goCount = Math.round(count * GO_RATIO);
+        const nogoCount = count - goCount;
+
+        const trials = [];
+
+        // Go 시행 생성 (초록 네모)
+        for (let i = 0; i < goCount; i++) {
+          trials.push({
+            condition: 'go',
+            stimulus: 'green_square',
+            correct_response: 'space',
+          });
+        }
+
+        // No-Go 시행 생성 (빨간 네모)
+        for (let i = 0; i < nogoCount; i++) {
+          trials.push({
+            condition: 'nogo',
+            stimulus: 'red_square',
+            correct_response: 'none',
+          });
+        }
+
+        // 랜덤 순서로 셔플
+        return shuffle(trials);
+      }
+
+      // ─────────────────────────────────────────────────────────────
+      // Fullscreen 제어
+      // ─────────────────────────────────────────────────────────────
+
+      /** 전체화면 모드 진입 시도 */
+      function requestFullscreen() {
+        const el = document.documentElement;
+        const rfs = el.requestFullscreen
+          || el.webkitRequestFullscreen
+          || el.mozRequestFullScreen
+          || el.msRequestFullscreen;
+        if (rfs) {
+          rfs.call(el).catch(() => {
+            // 일부 브라우저에서 사용자 제스처 없이 fullscreen 불가 — 무시
+          });
+        }
+      }
+
+      // ─────────────────────────────────────────────────────────────
+      // 입력 이벤트 핸들러 (키보드 + 터치)
+      // ─────────────────────────────────────────────────────────────
+
+      /**
+       * 응답 처리 공통 함수
+       * — 입력을 수용 중일 때만 반응을 기록하고 resolve
+       */
+      function handleResponse() {
+        if (!acceptingInput) return;
+        if (!keyReleased) return; // 키를 아직 떼지 않았으면 무시
+
+        // 반응 시간 계산 (performance.now 기반 고정밀 측정)
+        const rt = performance.now() - stimulusOnsetTime;
+
+        // 중복 입력 차단
+        acceptingInput = false;
+        keyReleased = false;
+
+        // Promise resolve로 trial 루프에 결과 전달
+        if (trialResolve) {
+          trialResolve({ responded: true, rt: rt });
+          trialResolve = null;
+        }
+      }
+
+      /** 키보드 keydown — SPACE 키만 처리 */
+      document.addEventListener('keydown', (e) => {
+        if (e.code === 'Space' || e.key === ' ') {
+          e.preventDefault(); // 스크롤 방지
+          handleResponse();
+        }
+      });
+
+      /** 키보드 keyup — 키 중복 방지 해제 */
+      document.addEventListener('keyup', (e) => {
+        if (e.code === 'Space' || e.key === ' ') {
+          keyReleased = true;
+        }
+      });
+
+      /** 모바일 터치 이벤트 */
+      touchGoBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        touchGoBtn.classList.add('pressed');
+        handleResponse();
+      });
+
+      touchGoBtn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        touchGoBtn.classList.remove('pressed');
+        keyReleased = true;
+      });
+
+      // 마우스 클릭도 fallback으로 지원 (데스크톱에서 터치 화면 사용 시)
+      touchGoBtn.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        handleResponse();
+      });
+
+      touchGoBtn.addEventListener('mouseup', () => {
+        keyReleased = true;
+      });
+
+      // ─────────────────────────────────────────────────────────────
+      // 시작 화면 초기화
+      // ─────────────────────────────────────────────────────────────
+
+      /** 디바이스에 따라 시작 화면 안내 문구 설정 */
+      function initStartScreen() {
+        const instrEl = document.getElementById('start-instructions');
+        const actionLabel = document.getElementById('practice-action-label');
+
+        if (isMobile) {
+          instrEl.innerHTML = `
+            <p>이 실험은 <strong>반응 억제(Response Inhibition)</strong>를 측정합니다.</p><br>
+            <p><span style="display:inline-block;width:16px;height:16px;border-radius:4px;background:linear-gradient(135deg,#34d399,#10b981);vertical-align:middle;"></span> <strong>초록 네모</strong> 가 나타나면 → 화면 하단의 <strong>TAP 버튼</strong>을 최대한 빠르게 터치</p>
+            <p><span style="display:inline-block;width:16px;height:16px;border-radius:4px;background:linear-gradient(135deg,#ff6b6b,#ee5a24);vertical-align:middle;"></span> <strong>빨간 네모</strong> 가 나타나면 → 아무것도 누르지 않기</p><br>
+            <p>연습 5회 → 본 실험 40회 순서로 진행됩니다.</p>
+          `;
+          if (actionLabel) actionLabel.textContent = 'TAP 버튼';
+        } else {
+          instrEl.innerHTML = `
+            <p>이 실험은 <strong>반응 억제(Response Inhibition)</strong>를 측정합니다.</p><br>
+            <p><span style="display:inline-block;width:16px;height:16px;border-radius:4px;background:linear-gradient(135deg,#34d399,#10b981);vertical-align:middle;"></span> <strong>초록 네모</strong> 가 나타나면 → <strong>SPACE 키</strong>를 최대한 빠르게 누르기</p>
+            <p><span style="display:inline-block;width:16px;height:16px;border-radius:4px;background:linear-gradient(135deg,#ff6b6b,#ee5a24);vertical-align:middle;"></span> <strong>빨간 네모</strong> 가 나타나면 → 아무것도 누르지 않기</p><br>
+            <p>연습 5회 → 본 실험 40회 순서로 진행됩니다.</p>
+          `;
+          if (actionLabel) actionLabel.textContent = 'SPACE';
+        }
+      }
+
+      // ─────────────────────────────────────────────────────────────
+      // 단일 Trial 실행
+      // ─────────────────────────────────────────────────────────────
+
+      /**
+       * 하나의 trial을 실행하고 결과 객체를 반환
+       * @param {object} trial - { condition, stimulus, correct_response }
+       * @param {number} trialNumber - 현재 시행 번호
+       * @param {boolean} isPractice - 연습 시행 여부
+       * @returns {object} trial 데이터
+       */
+      async function runTrial(trial, trialNumber, isPractice) {
+
+        // ── 1단계: 응시점 (+) 표시 + 조기 반응 감지 ──
+        trialArea.innerHTML = `<div class="fixation">+</div>`;
+
+        // 기준선 중 입력 감지를 위해 premature 플래그 사용
+        let prematurePress = false;
+        acceptingInput = true;  // 입력 감지 활성화
+        keyReleased = true;
+
+        // 기준선 중 입력이 들어오면 premature로 기록
+        const prematurePromise = new Promise((resolve) => {
+          trialResolve = resolve;
+          setTimeout(() => {
+            if (!prematurePress) {
+              acceptingInput = false;
+              resolve({ responded: false });
+              trialResolve = null;
+            }
+          }, FIXATION_DURATION);
+        });
+
+        const fixResult = await prematurePromise;
+
+        // 기준선 중 눌렀을 경우: premature error로 처리
+        if (fixResult.responded) {
+          prematurePress = true;
+          acceptingInput = false;
+
+          // 연습에서만 피드백 표시
+          if (isPractice) {
+            trialArea.innerHTML = `<div class="feedback incorrect">✗ 기준선(+) 중에는 누르지 마세요!</div>`;
+            await sleep(800);
+          }
+
+          // ITI
+          trialArea.innerHTML = '';
+          await sleep(ITI_DURATION);
+
+          // premature 응답 데이터 반환 (오류로 기록, trial 횟수에 카운트)
+          return {
+            participant_id: participantName || participantId,
+            trial_number: trialNumber,
+            phase: isPractice ? 'practice' : 'main',
+            condition: trial.condition,
+            stimulus: trial.stimulus,
+            correct_response: trial.correct_response,
+            user_response: 'premature',
+            correct: 0,
+            reaction_time: null,
+            commission_error: trial.condition === 'nogo' ? 1 : 0,
+            omission_error: 0,
+            device_type: deviceType,
+            screen_width: window.screen.width,
+            screen_height: window.screen.height,
+            user_agent: navigator.userAgent,
+          };
+        }
+
+        // ── 2단계: 자극 제시 (색상 사각형) ──
+        const stimClass = trial.condition === 'go' ? 'go' : 'nogo';
+        trialArea.innerHTML = `<div class="stimulus-square ${stimClass}"></div>`;
+
+        // 입력 수용 시작 & 타이머 기록
+        currentCondition = trial.condition;
+        acceptingInput = true;
+        keyReleased = true;
+        stimulusOnsetTime = performance.now();
+
+        // Promise 기반 입력 대기 (최대 STIMULUS_DURATION)
+        const response = await new Promise((resolve) => {
+          trialResolve = resolve;
+
+          // 타임아웃: 시간 내 반응 없으면 미반응으로 처리
+          setTimeout(() => {
+            if (acceptingInput) {
+              acceptingInput = false;
+              resolve({ responded: false, rt: null });
+              trialResolve = null;
+            }
+          }, STIMULUS_DURATION);
+        });
+
+        // ── 3단계: 반응 기록 및 정답 판정 ──
+        let userResponse, correct, rt, commissionError, omissionError;
+
+        if (response.responded) {
+          userResponse = 'space';
+          rt = Math.round(response.rt * 100) / 100; // 소수점 2자리
+
+          // Go 시행에서 눌렀으면 정답, No-Go에서 눌렀으면 Commission error (수행오류)
+          correct = trial.condition === 'go' ? 1 : 0;
+          commissionError = trial.condition === 'nogo' ? 1 : 0;  // 수행오류: No-Go에서 누름
+          omissionError = 0;
+        } else {
+          userResponse = 'none';
+          rt = null;
+
+          // No-Go 시행에서 안 눌렀으면 정답, Go에서 안 눌렀으면 Omission error (누락오류)
+          correct = trial.condition === 'nogo' ? 1 : 0;
+          commissionError = 0;
+          omissionError = trial.condition === 'go' ? 1 : 0;  // 누락오류: Go에서 안 누름
+        }
+
+        // ── 연습에서만 피드백 표시 ──
+        if (isPractice) {
+          let fbText, fbClass;
+
+          if (correct) {
+            fbText = '✓ 정확합니다';
+            fbClass = 'correct';
+          } else {
+            if (trial.condition === 'go') {
+              // Omission error: Go인데 누르지 않음
+              fbText = '✗ 초록 네모일 때는 빠르게 눌러주세요!';
+              fbClass = 'incorrect';
+            } else {
+              // Commission error: No-Go인데 누름
+              fbText = '✗ 빨간 네모일 때는 누르지 마세요!';
+              fbClass = 'incorrect';
+            }
+          }
+
+          trialArea.innerHTML = `<div class="feedback ${fbClass}">${fbText}</div>`;
+          await sleep(800);
+        }
+
+        // ── 4단계: ITI (시행 간 간격) ──
+        trialArea.innerHTML = '';
+        await sleep(ITI_DURATION);
+
+        // ── 데이터 객체 생성 (commission_error, omission_error 포함) ──
+        return {
+          participant_id: participantName || participantId,
+          trial_number: trialNumber,
+          phase: isPractice ? 'practice' : 'main',
+          condition: trial.condition,
+          stimulus: trial.stimulus,
+          correct_response: trial.correct_response,
+          user_response: userResponse,
+          correct: correct,
+          reaction_time: rt,
+          commission_error: commissionError,
+          omission_error: omissionError,
+          device_type: deviceType,
+          screen_width: window.screen.width,
+          screen_height: window.screen.height,
+          user_agent: navigator.userAgent,
+        };
+      }
+
+      // ─────────────────────────────────────────────────────────────
+      // 블록 실행 (연습 / 본 실험)
+      // ─────────────────────────────────────────────────────────────
+
+      /**
+       * trial 블록을 순차 실행
+       * @param {Array} trials - trial 배열
+       * @param {boolean} isPractice - 연습 여부
+       * @param {number} startNumber - 시작 번호
+       */
+      async function runBlock(trials, isPractice, startNumber = 1) {
+        const totalTrials = trials.length;
+
+        // 라벨 업데이트
+        phaseLabel.textContent = isPractice ? 'PRACTICE' : 'MAIN EXPERIMENT';
+
+        for (let i = 0; i < totalTrials; i++) {
+          // 진행 바 업데이트
+          const progress = ((i + 1) / totalTrials) * 100;
+          progressFill.style.width = `${progress}%`;
+
+          // 단일 trial 실행
+          const data = await runTrial(trials[i], startNumber + i, isPractice);
+
+          // 본 실험 데이터만 저장 (연습은 저장하지 않음)
+          if (!isPractice) {
+            allData.push(data);
+          }
+        }
+      }
+
+      // ─────────────────────────────────────────────────────────────
+      // 결과 계산 및 표시
+      // ─────────────────────────────────────────────────────────────
+
+      /** 본 실험 데이터를 기반으로 결과를 계산하고 화면에 출력 */
+      function showResults() {
+        const goTrials = allData.filter(d => d.condition === 'go');
+        const nogoTrials = allData.filter(d => d.condition === 'nogo');
+
+        // ── Go 정답 시행의 평균 반응시간 ──
+        const goCorrectRTs = goTrials
+          .filter(d => d.correct === 1 && d.reaction_time !== null)
+          .map(d => d.reaction_time);
+        const goMeanRT = goCorrectRTs.length > 0 ? Math.round(mean(goCorrectRTs)) : 0;
+
+        // ── Commission error rate: No-Go에서 누른 비율 ──
+        const commissionErrors = nogoTrials.filter(d => d.correct === 0).length;
+        const commissionRate = nogoTrials.length > 0
+          ? Math.round((commissionErrors / nogoTrials.length) * 100)
+          : 0;
+
+        // ── Omission error rate: Go에서 안 누른 비율 ──
+        const omissionErrors = goTrials.filter(d => d.correct === 0).length;
+        const omissionRate = goTrials.length > 0
+          ? Math.round((omissionErrors / goTrials.length) * 100)
+          : 0;
+
+        // ── 전체 정확도 ──
+        const overallAccuracy = allData.length > 0
+          ? Math.round((allData.filter(d => d.correct === 1).length / allData.length) * 100)
+          : 0;
+
+        // ── 결과 카드 렌더링 ──
+        const resultsGrid = document.getElementById('results-grid');
+        resultsGrid.innerHTML = `
+          <div class="result-card">
+            <div class="label">Go 평균 RT</div>
+            <div class="value" style="color:var(--accent);">${goMeanRT}<span class="unit"> ms</span></div>
+          </div>
+          <div class="result-card">
+            <div class="label">Commission Error</div>
+            <div class="value" style="color:var(--red);">${commissionRate}<span class="unit"> %</span></div>
+          </div>
+          <div class="result-card">
+            <div class="label">Omission Error</div>
+            <div class="value" style="color:var(--yellow);">${omissionRate}<span class="unit"> %</span></div>
+          </div>
+        `;
+
+        // ── 상세 결과 테이블 ──
+        const detailEl = document.getElementById('results-detail');
+        detailEl.innerHTML = `
+          <table>
+            <thead>
+              <tr>
+                <th>지표</th>
+                <th>값</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>전체 시행 수</td><td>${allData.length}</td></tr>
+              <tr><td>전체 정확도</td><td>${overallAccuracy}%</td></tr>
+              <tr><td>Go 시행 수</td><td>${goTrials.length}</td></tr>
+              <tr><td>Go 정답 수</td><td>${goCorrectRTs.length}</td></tr>
+              <tr><td>Go 평균 RT</td><td>${goMeanRT} ms</td></tr>
+              <tr><td>No-Go 시행 수</td><td>${nogoTrials.length}</td></tr>
+              <tr><td>Commission Errors</td><td>${commissionErrors} / ${nogoTrials.length}</td></tr>
+              <tr><td>Commission Error Rate</td><td style="color:var(--red);">${commissionRate}%</td></tr>
+              <tr><td>Omission Errors</td><td>${omissionErrors} / ${goTrials.length}</td></tr>
+              <tr><td>Omission Error Rate</td><td style="color:var(--yellow);">${omissionRate}%</td></tr>
+            </tbody>
+          </table>
+        `;
+      }
+
+      // ─────────────────────────────────────────────────────────────
+      // Google Sheets 전송
+      // ─────────────────────────────────────────────────────────────
+
+      /**
+       * 전체 실험 데이터를 Google Apps Script Web App으로 전송
+       * @param {Array} data - 전송할 trial 데이터 배열
+       */
+      async function sendToGoogleSheets(data) {
+        sendingStatus.textContent = '데이터 전송 중...';
+        sendingStatus.className = 'sending-status';
+
+        try {
+          const response = await fetch(GOOGLE_SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors', // CORS 제한 우회 (Apps Script)
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              experiment: 'go_nogo',
+              participant_id: participantName || participantId,
+              device_type: deviceType,
+              screen_width: window.screen.width,
+              screen_height: window.screen.height,
+              user_agent: navigator.userAgent,
+              trials: data,
+            }),
+          });
+
+          sendingStatus.textContent = '✓ 데이터가 성공적으로 전송되었습니다.';
+          sendingStatus.className = 'sending-status success';
+        } catch (err) {
+          console.error('Google Sheets 전송 실패:', err);
+          sendingStatus.textContent = '⚠ 데이터 전송 실패. 콘솔을 확인하세요.';
+          sendingStatus.className = 'sending-status error';
+
+          // 전송 실패 시 콘솔에 JSON 출력 (데이터 복구용)
+          console.log('실험 데이터 (JSON):', JSON.stringify(data, null, 2));
+        }
+      }
+
+      // ─────────────────────────────────────────────────────────────
+      // 실험 메인 플로우
+      // ─────────────────────────────────────────────────────────────
+
+      /** 전체 실험 흐름 제어 */
+      async function startExperiment() {
+
+        // ── 전체화면 진입 ──
+        requestFullscreen();
+
+        // ── 실험 화면 활성화 & 스크롤 잠금 ──
+        showScreen('experiment');
+        document.body.classList.add('experiment-active');
+
+        // 모바일인 경우 터치 버튼 표시, 데스크톱은 키 힌트 표시
+        if (isMobile) {
+          touchGoBtn.classList.add('visible');
+          keyHint.style.display = 'none';
+        } else {
+          touchGoBtn.classList.remove('visible');
+          keyHint.style.display = 'flex';
+        }
+
+        // ── 연습 시행 ──
+        const practiceTrials = generateTrials(PRACTICE_TRIAL_COUNT);
+        await runBlock(practiceTrials, true, 1);
+
+        // ── 연습 종료 → 본 실험 안내 ──
+        document.body.classList.remove('experiment-active');
+        if (isMobile) touchGoBtn.classList.remove('visible');
+        keyHint.style.display = 'none';
+        showScreen('mainIntro');
+
+        // 본 실험 시작 버튼 대기
+        await new Promise(resolve => {
+          document.getElementById('btn-main-start').addEventListener('click', resolve, { once: true });
+        });
+
+        // ── 본 실험 시작 ──
+        requestFullscreen();
+        showScreen('experiment');
+        document.body.classList.add('experiment-active');
+
+        if (isMobile) {
+          touchGoBtn.classList.add('visible');
+        } else {
+          keyHint.style.display = 'flex';
+        }
+
+        // 진행 바 리셋
+        progressFill.style.width = '0%';
+
+        const mainTrials = generateTrials(MAIN_TRIAL_COUNT);
+        await runBlock(mainTrials, false, 1);
+
+        // ── 실험 종료 ──
+        document.body.classList.remove('experiment-active');
+        if (isMobile) touchGoBtn.classList.remove('visible');
+        keyHint.style.display = 'none';
+
+        // ── 결과 표시 ──
+        showScreen('results');
+        showResults();
+
+        // ── Google Sheets 전송 ──
+        await sendToGoogleSheets(allData);
+      }
+
+      // ─────────────────────────────────────────────────────────────
+      // 이벤트 바인딩 & 초기화
+      // ─────────────────────────────────────────────────────────────
+
+      /** 시작 화면 초기화 */
+      initStartScreen();
+
+      /** '실험 시작' 버튼 클릭 */
+      document.getElementById('btn-start').addEventListener('click', () => {
+        const nameInput = document.getElementById('participant-name');
+        const nameError = document.getElementById('name-error');
+        const name = nameInput.value.trim();
+
+        // 이름 유효성 검사
+        if (!name) {
+          nameInput.classList.add('input-error');
+          nameError.textContent = '닉네임을 입력해 주세요.';
+          nameInput.focus();
+          return;
+        }
+
+        nameInput.classList.remove('input-error');
+        nameError.textContent = '';
+        participantName = name;
+
+        // 연습 안내 화면으로 전환
+        showScreen('practiceIntro');
+      });
+
+      /** 입력 필드 에러 상태 해제 */
+      document.getElementById('participant-name').addEventListener('input', function () {
+        this.classList.remove('input-error');
+        document.getElementById('name-error').textContent = '';
+      });
+
+      /** Enter 키로도 시작 가능 */
+      document.getElementById('participant-name').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          document.getElementById('btn-start').click();
+        }
+      });
+
+      /** '연습 시작' 버튼 클릭 → 실험 메인 플로우 시작 */
+      document.getElementById('btn-practice-start').addEventListener('click', () => {
+        startExperiment();
+      });
+
+    })();
+  </script>
+
+</body>
+
+</html>
