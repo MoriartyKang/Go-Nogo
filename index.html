@@ -297,11 +297,11 @@
     }
 
     /* ===================================================================
-       실험 화면
+       실험 화면 — 자극을 화면 정중앙에 배치
        =================================================================== */
     #experiment-screen {
-      justify-content: flex-start;
-      padding-top: 5vh;
+      justify-content: center;
+      padding-top: 0;
       height: 100vh;
     }
 
@@ -310,35 +310,36 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      min-height: 340px;
+      flex: 1;
       width: 100%;
+      min-height: 50vh;
     }
 
-    /* 응시점 */
+    /* 응시점 — 크게 */
     .fixation {
-      font-size: 4rem;
+      font-size: 5.5rem;
       font-weight: 300;
       color: var(--text-dim);
       user-select: none;
     }
 
-    /* 자극 — 색상 사각형 (Go: 초록색 / No-Go: 빨간색) */
+    /* 자극 — 색상 사각형 (Go: 초록색 / No-Go: 빨간색) — 크게 */
     .stimulus-square {
-      width: 140px;
-      height: 140px;
-      border-radius: 18px;
+      width: 180px;
+      height: 180px;
+      border-radius: 22px;
       user-select: none;
       animation: stimPop 0.12s ease-out;
     }
 
     .stimulus-square.go {
       background: linear-gradient(135deg, #34d399, #10b981);
-      box-shadow: 0 0 60px rgba(52, 211, 153, 0.4), 0 0 120px rgba(52, 211, 153, 0.15);
+      box-shadow: 0 0 80px rgba(52, 211, 153, 0.45), 0 0 160px rgba(52, 211, 153, 0.15);
     }
 
     .stimulus-square.nogo {
       background: linear-gradient(135deg, #ff6b6b, #ee5a24);
-      box-shadow: 0 0 60px rgba(255, 107, 107, 0.4), 0 0 120px rgba(255, 107, 107, 0.15);
+      box-shadow: 0 0 80px rgba(255, 107, 107, 0.45), 0 0 160px rgba(255, 107, 107, 0.15);
     }
 
     @keyframes stimPop {
@@ -374,24 +375,7 @@
       border: 1px solid rgba(248, 113, 113, 0.2);
     }
 
-    /* 진행 바 */
-    .progress-bar-container {
-      width: 100%;
-      max-width: 400px;
-      height: 4px;
-      background: var(--glass);
-      border-radius: 2px;
-      margin-bottom: 2rem;
-      overflow: hidden;
-    }
-
-    .progress-bar-fill {
-      height: 100%;
-      background: linear-gradient(90deg, var(--accent), var(--green));
-      border-radius: 2px;
-      transition: width 0.4s ease;
-    }
-
+    /* 진행 정보 — 상단 고정 */
     .phase-label {
       font-size: 0.78rem;
       color: var(--text-dim);
@@ -399,6 +383,25 @@
       letter-spacing: 0.1em;
       text-transform: uppercase;
       margin-bottom: 0.5rem;
+      flex-shrink: 0;
+    }
+
+    .progress-bar-container {
+      width: 100%;
+      max-width: 400px;
+      height: 4px;
+      background: var(--glass);
+      border-radius: 2px;
+      margin-bottom: 1rem;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--green));
+      border-radius: 2px;
+      transition: width 0.4s ease;
     }
 
     /* ===================================================================
@@ -616,10 +619,14 @@
         font-size: 1.5rem;
       }
 
+      .fixation {
+        font-size: 4.5rem;
+      }
+
       .stimulus-square {
-        width: 110px;
-        height: 110px;
-        border-radius: 14px;
+        width: 140px;
+        height: 140px;
+        border-radius: 18px;
       }
 
       .feedback.premature {
@@ -627,7 +634,7 @@
       }
 
       .trial-area {
-        min-height: 220px;
+        min-height: 40vh;
       }
 
       .results-grid {
@@ -635,8 +642,8 @@
       }
 
       #experiment-screen {
-        padding-top: 3vh;
-        padding-bottom: 180px;
+        padding-top: 0;
+        padding-bottom: 160px;
         /* 터치 버튼 공간 확보 */
       }
 
