@@ -939,23 +939,7 @@
         return shuffle(trials);
       }
 
-      // ─────────────────────────────────────────────────────────────
-      // Fullscreen 제어
-      // ─────────────────────────────────────────────────────────────
-
-      /** 전체화면 모드 진입 시도 */
-      function requestFullscreen() {
-        const el = document.documentElement;
-        const rfs = el.requestFullscreen
-          || el.webkitRequestFullscreen
-          || el.mozRequestFullScreen
-          || el.msRequestFullscreen;
-        if (rfs) {
-          rfs.call(el).catch(() => {
-            // 일부 브라우저에서 사용자 제스처 없이 fullscreen 불가 — 무시
-          });
-        }
-      }
+      // (Fullscreen 강제 제거됨 — 사용자 환경 그대로 진행)
 
       // ─────────────────────────────────────────────────────────────
       // 입력 이벤트 핸들러 (키보드 + 터치)
@@ -1364,9 +1348,6 @@
       /** 전체 실험 흐름 제어 */
       async function startExperiment() {
 
-        // ── 전체화면 진입 ──
-        requestFullscreen();
-
         // ── 실험 화면 활성화 & 스크롤 잠금 ──
         showScreen('experiment');
         document.body.classList.add('experiment-active');
@@ -1396,7 +1377,6 @@
         });
 
         // ── 본 실험 시작 ──
-        requestFullscreen();
         showScreen('experiment');
         document.body.classList.add('experiment-active');
 
